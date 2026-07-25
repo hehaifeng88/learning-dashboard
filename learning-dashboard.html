@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM Enterprise 会员模块学习看板</title>
+<style>
+:root {
+  --green: #10b981; --green-bg: #ecfdf5; --green-border: #a7f3d0;
+  --blue: #3b82f6; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
+  --gray: #6b7280; --gray-bg: #f9fafb; --gray-border: #e5e7eb;
+  --orange: #f59e0b; --orange-bg: #fffbeb; --orange-border: #fde68a;
+  --text: #1f2937; --text-secondary: #6b7280; --bg: #f3f4f6;
+  --sidebar-w: 260px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ===== 顶部头部 ===== */
+.header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; padding: 20px 32px; flex-shrink: 0; z-index: 100; transition: padding .3s; position: relative; }
+.header.collapsed { padding: 10px 32px; }
+.header-inner { max-width: 1400px; margin: 0 auto; }
+.header-top { display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 22px; font-weight: 600; margin-bottom: 2px; transition: font-size .3s; }
+.header.collapsed h1 { font-size: 16px; margin-bottom: 0; }
+.header .sub { font-size: 13px; opacity: .75; transition: all .3s; overflow: hidden; }
+.header.collapsed .sub { height: 0; opacity: 0; margin: 0; }
+.header-collapse-btn { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); color: #fff; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px; transition: all .2s; flex-shrink: 0; white-space: nowrap; }
+.header-collapse-btn:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.4); }
+.header.collapsed .header-collapse-btn .arrow { transform: rotate(180deg); }
+.header-collapse-btn .arrow { transition: transform .3s; display: inline-block; font-size: 10px; }
+.header-collapse-btn .text-open { display: inline; }
+.header-collapse-btn .text-closed { display: none; }
+.header.collapsed .header-collapse-btn .text-open { display: none; }
+.header.collapsed .header-collapse-btn .text-closed { display: inline; }
+.stats-wrap { transition: all .3s; overflow: hidden; max-height: 120px; }
+.header.collapsed .stats-wrap { max-height: 0; margin: 0; }
+.stats { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+.stat-card { background: rgba(255,255,255,.12); border-radius: 8px; padding: 12px 20px; min-width: 100px; backdrop-filter: blur(8px); }
+.stat-card .num { font-size: 28px; font-weight: 700; }
+.stat-card .label { font-size: 12px; opacity: .8; margin-top: 1px; }
+.stat-card.green .num { color: #6ee7b7; }
+.main-bar { height: 6px; background: rgba(255,255,255,.2); border-radius: 3px; margin-top: 14px; overflow: hidden; transition: all .3s; }
+.achievement-summary { margin-top: 14px; padding: 10px 16px; background: rgba(255,255,255,.08); border-radius: 8px; display: flex; align-items: center; gap: 12px; font-size: 13px; cursor: pointer; transition: background .2s; }
+.achievement-summary:hover { background: rgba(255,255,255,.14); }
+.achievement-summary .summary-icon { font-size: 18px; flex-shrink: 0; }
+.achievement-summary .summary-text { flex: 1; opacity: .9; }
+.achievement-summary .summary-text strong { color: #6ee7b7; }
+.achievement-summary .summary-arrow { font-size: 11px; opacity: .6; transition: transform .3s; }
+.achievement-summary.open .summary-arrow { transform: rotate(180deg); }
+.achievement-panel { transition: all .3s; overflow: hidden; max-height: 0; }
+.achievement-panel.open { max-height: 400px; }
+.achievement-panel-inner { padding: 16px 0 4px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.achievement-panel-item { background: rgba(255,255,255,.08); border-radius: 6px; padding: 10px 14px; }
+.achievement-panel-item .title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.achievement-panel-item .desc { font-size: 11px; opacity: .75; line-height: 1.5; }
+/* 仪表盘收起时也隐藏成果摘要 */
+.header.collapsed .achievement-summary { display: none; }
+.header.collapsed .achievement-panel { display: none; }
+
+/* ===== 主体布局 ===== */
+.body-wrap { display: flex; max-width: 1400px; margin: 0 auto; flex: 1; overflow: hidden; width: 100%; }
+
+/* ===== 左侧大纲侧边栏 ===== */
+.sidebar { width: var(--sidebar-w); background: #fff; border-right: 1px solid var(--gray-border); flex-shrink: 0; overflow-y: auto; height: 100%; }
+.sidebar-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--gray-border); position: sticky; top: 0; background: #fff; z-index: 2; }
+.sidebar-header h2 { font-size: 14px; font-weight: 600; color: var(--text); }
+.sidebar-header .hint { font-size: 11px; color: #999; margin-top: 2px; }
+.sidebar-list { padding: 8px 0; }
+.sidebar-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; transition: background .15s; border-left: 3px solid transparent; font-size: 13px; }
+.sidebar-item:hover { background: var(--blue-bg); }
+.sidebar-item.active { background: var(--blue-bg); border-left-color: var(--blue); font-weight: 500; }
+.sidebar-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sidebar-item .dot.done { background: var(--green); }
+.sidebar-item .dot.partial { background: var(--orange); }
+.sidebar-item .dot.none { background: #d1d5db; }
+.sidebar-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-item .pct { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+.sidebar-item.active .pct { color: var(--blue); font-weight: 600; }
+.sidebar-item .tree-arrow { font-size: 10px; width: 14px; text-align: center; flex-shrink: 0; transition: transform .2s; color: #999; }
+.sidebar-parent { font-weight: 600; }
+.sidebar-parent.collapsed .tree-arrow { transform: rotate(-90deg); }
+.sidebar-child { padding-left: 48px; font-size: 12px; }
+.sidebar-children { overflow: hidden; transition: max-height .3s; }
+.sidebar-children.collapsed { max-height: 0 !important; }
+.sidebar-sep { height: 1px; background: var(--gray-border); margin: 8px 20px; }
+.sidebar-achievement { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; transition: background .15s; border-left: 3px solid transparent; font-size: 13px; color: var(--text-secondary); }
+.sidebar-achievement:hover { background: #fef3c7; }
+.sidebar-achievement.active { background: #fef3c7; border-left-color: var(--orange); color: #b45309; font-weight: 500; }
+.sidebar-achievement .icon { font-size: 16px; flex-shrink: 0; }
+.module-view { display: block; }
+.module-view.hidden { display: none; }
+.achievement-view { display: none; }
+.achievement-view.active { display: block; }
+
+/* ===== 右侧主内容 ===== */
+.main-content { flex: 1; padding: 20px 24px 0; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.main-scroll { flex: 1; overflow-y: auto; padding-bottom: 24px; }
+
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; flex-shrink: 0; }
+.filter-bar .label { font-size: 12px; color: var(--text-secondary); margin-right: 2px; white-space: nowrap; }
+.filter-chip { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--gray-border); background: #fff; font-size: 12px; cursor: pointer; transition: all .2s; white-space: nowrap; color: var(--text-secondary); }
+.filter-chip:hover { border-color: var(--blue); color: var(--blue); }
+.filter-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.expand-all-btn { margin-left: auto; padding: 6px 16px; border-radius: 6px; border: none; background: var(--blue); color: #fff; font-size: 12px; cursor: pointer; transition: all .2s; white-space: nowrap; font-weight: 500; }
+.expand-all-btn:hover { background: #2563eb; box-shadow: 0 2px 6px rgba(59,130,246,.3); }
+.expand-all-btn.collapsing { background: var(--orange); }
+.expand-all-btn.collapsing:hover { background: #d97706; box-shadow: 0 2px 6px rgba(245,158,11,.3); }
+.view-toggle { display: flex; gap: 0; margin-left: 12px; border-radius: 6px; overflow: hidden; border: 1px solid var(--gray-border); }
+.view-toggle-btn { padding: 5px 14px; border: none; background: #fff; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.view-toggle-btn:hover { background: var(--blue-bg); }
+.view-toggle-btn.active { background: var(--blue); color: #fff; }
+.view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--gray-border); }
+.achievement-view { display: none; }
+.achievement-view.active { display: block; }
+.module-view { display: block; }
+.module-view.hidden { display: none; }
+
+.module-grid { display: block; }
+.module-card { background: #fff; border-radius: 10px; border: 1px solid var(--gray-border); margin-bottom: 12px; overflow: hidden; transition: box-shadow .2s; }
+.module-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.module-card.done { border-left: 4px solid var(--green); }
+.module-card.pending { border-left: 4px solid var(--gray-border); }
+.module-card-header { padding: 16px 20px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; user-select: none; }
+.module-card-header h3 { font-size: 14px; font-weight: 600; }
+.module-card-header .expand-hint { font-size: 11px; color: #bbb; background: #fafafa; padding: 2px 10px; border-radius: 4px; flex-shrink: 0; transition: all .2s; display: flex; align-items: center; gap: 4px; }
+.module-card-header:hover .expand-hint { color: var(--blue); background: var(--blue-bg); }
+.expand-hint .hint-open { display: none; }
+.module-card.open .expand-hint .hint-closed { display: none; }
+.module-card.open .expand-hint .hint-open { display: inline; }
+.module-card-header .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.badge-done { background: var(--green-bg); color: var(--green); }
+.badge-partial { background: var(--orange-bg); color: var(--orange); }
+.badge-pending { background: var(--gray-bg); color: var(--gray); }
+.module-card-body { display: none; padding: 0 20px 12px; }
+.module-card-body table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.module-card-body td { padding: 5px 0; border-bottom: 1px solid #fafafa; }
+.module-card-body td:first-child { color: var(--text); }
+.module-card-body td:last-child { text-align: right; }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
+.status-dot.done { background: var(--green); }
+.status-dot.pending { background: #d1d5db; }
+.mini-bar-wrap { height: 3px; background: #f0f0f0; border-radius: 2px; margin: 8px 0; }
+.mini-bar { height: 100%; border-radius: 2px; transition: width .3s; }
+.mini-bar.green { background: var(--green); }
+.card-footer { padding: 8px 20px; border-top: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-secondary); }
+.card-footer .detail-btn { padding: 4px 14px; border-radius: 4px; border: 1px solid #d1d5db; background: #fafafa; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all .2s; }
+.card-footer .detail-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+.module-card.open .card-footer .detail-btn { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+.expand-icon { font-size: 16px; color: #ccc; transition: transform .3s; }
+.module-card.open .expand-icon { transform: rotate(180deg); }
+.detail-panel { display: none; padding: 0 20px 16px; border-top: 1px solid #f0f0f0; font-size: 12px; }
+.module-card.open .module-card-body { display: block; }
+.module-card.open .detail-panel { display: block; }
+.detail-panel h4 { font-size: 13px; margin: 10px 0 6px; color: var(--text); }
+.detail-panel ul { padding-left: 16px; color: var(--text-secondary); }
+.detail-panel li { margin-bottom: 3px; }
+
+.achievement-card { background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%); border: 1px solid var(--green-border); border-radius: 10px; padding: 20px 24px; margin-top: 20px; }
+.achievement-card h2 { font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+.achievement-item { border-radius: 8px; padding: 12px 14px; border: 1px solid #e5e7eb; transition: all .2s; }
+.achievement-item:nth-child(8n+1) { background: #eff6ff; border-left: 3px solid #3b82f6; }
+.achievement-item:nth-child(8n+2) { background: #ecfdf5; border-left: 3px solid #10b981; }
+.achievement-item:nth-child(8n+3) { background: #fffbeb; border-left: 3px solid #f59e0b; }
+.achievement-item:nth-child(8n+4) { background: #f5f3ff; border-left: 3px solid #8b5cf6; }
+.achievement-item:nth-child(8n+5) { background: #fdf2f8; border-left: 3px solid #ec4899; }
+.achievement-item:nth-child(8n+6) { background: #ecfeff; border-left: 3px solid #06b6d4; }
+.achievement-item:nth-child(8n+7) { background: #fff7ed; border-left: 3px solid #f97316; }
+.achievement-item:nth-child(8n+8) { background: #f7fee7; border-left: 3px solid #84cc16; }
+.achievement-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+.achievement-item .title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.achievement-item .desc { font-size: 12px; color: var(--text-secondary); }
+
+.empty-state { text-align: center; padding: 60px 40px; color: var(--text-secondary); }
+.empty-state .icon { font-size: 40px; margin-bottom: 10px; }
+
+.footer { text-align: center; padding: 20px; font-size: 11px; color: #bbb; }
+.toggle-detail { font-size: 11px; color: var(--blue); cursor: pointer; }
+.toggle-detail:hover { text-decoration: underline; }
+.summary-text { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.7; }
+
+/* 小屏幕适配 */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .body-wrap { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div class="header" id="headerBar">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <h1>ARM · 学习计划看板</h1>
+        <div class="sub">学习周期：2026年7月 — 至今 · 碎片化学习（每天1小时）</div>
+      </div>
+      <button class="header-collapse-btn" onclick="document.getElementById('headerBar').classList.toggle('collapsed')" title="收起/展开仪表盘">
+        <span class="text-open">收起仪表盘</span><span class="text-closed">展开仪表盘</span><span class="arrow">▲</span>
+      </button>
+    </div>
+    <div class="stats-wrap">
+      <div class="stats" id="summaryStats"></div>
+      <div class="main-bar"><div class="main-bar-fill" id="mainBar" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="body-wrap">
+
+  <!-- 左侧模块大纲 -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>📋 模块大纲</h2>
+      <div class="hint">点击筛选右侧详情</div>
+    </div>
+    <div class="sidebar-list" id="sidebarList"></div>
+  </div>
+
+  <!-- 右侧主内容 -->
+  <div class="main-content">
+    <div class="filter-bar">
+      <span class="label">状态：</span>
+      <div class="filter-chip" data-filter="all">全部</div>
+      <div class="filter-chip active" data-filter="done">已完成</div>
+      <div class="filter-chip" data-filter="pending">待学习</div>
+      <button class="expand-all-btn" id="expandAllBtn" onclick="toggleExpandAll()">📖 展开全部详情</button>
+    </div>
+
+    <div class="main-scroll">
+      <div class="module-view active" id="moduleView">
+        <div class="module-grid" id="moduleGrid"></div>
+      </div>
+      <div class="achievement-view" id="achievementView">
+        <div class="achievement-card">
+          <h2>✨ 本月学习成果概览（2026年7月）</h2>
+          <div class="summary-text" id="achievementSummary"></div>
+          <div class="achievement-grid" id="achievementGrid"></div>
+        </div>
+      </div>
+      <div class="footer">ARM Enterprise 会员模块学习看板 · 更新于 2026-07-26</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MODULES = [
+  { parent:'会员管理', group:'基础信息', name:'会员资料', items:[
+    {name:'会员核心数据模型', status:'done', pct:100, note:'会员编号生成规则、状态枚举、渠道概念、宝宝/联系人关联'},
+    {name:'会员等级体系', status:'pending', pct:0, note:''},
+    {name:'360视图', status:'pending', pct:0, note:''},
+    {name:'历史会员资料', status:'pending', pct:0, note:''},
+    {name:'宝宝生日修改限制', status:'pending', pct:0, note:''},
+    {name:'会员注册资料完善', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'基础信息', name:'会员卡管理', items:[
+    {name:'卡类型定义', status:'pending', pct:0, note:''},
+    {name:'制卡/发卡/挂失流程', status:'pending', pct:0, note:''},
+    {name:'实体卡与虚拟卡', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'会员目标', name:'会员目标', items:[
+    {name:'导购会员目标', status:'pending', pct:0, note:''},
+    {name:'门店会员目标', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'会员积分', name:'会员积分', items:[
+    {name:'积分抵现限制', status:'pending', pct:0, note:''},
+    {name:'积分规则', status:'pending', pct:0, note:''},
+    {name:'积分兑换', status:'pending', pct:0, note:''},
+    {name:'积分清零', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'资料分类', items:[
+    {name:'MsArchivesClassify CRUD', status:'done', pct:100, note:'二级分类限制、系统预置数据保护、子分类规则校验'},
+    {name:'分类名称唯一性校验', status:'done', pct:100, note:'同级别不可重名、不可在系统预置分类下添加子分类'},
+    {name:'分类删除保护', status:'done', pct:100, note:'有关联资料项时不可删除、系统预置不可删除'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'资料项目', items:[
+    {name:'MsArchivesInfo 定义模型', status:'done', pct:100, note:'itemName/type/pattern/applicableTarget/mustFlag/valueWide 完整配置'},
+    {name:'格式类型支持', status:'done', pct:100, note:'text/radio/checkbox/number/date/area 六种类型'},
+    {name:'系统预置 vs 自定义', status:'done', pct:100, note:'entityType 区分 sys/self，sys 不可删除、数据存业务表'},
+    {name:'子级资料项', status:'done', pct:100, note:'MsArchivesInfoChild + parentId 关联，宝宝子字段（姓名/性别/生日等）'},
+    {name:'适用对象', status:'done', pct:100, note:'member/baby 两个维度，不同类型的数据走不同存储路径'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'档案模板', items:[
+    {name:'MsArchivesTemplate 模板管理', status:'done', pct:100, note:'模板创建→分类关联→资料项勾选→保存草稿/提交发布'},
+    {name:'模板校验规则', status:'done', pct:100, note:'至少一个手机号、分类不重复、资料项不重复、宝宝信息互斥'},
+    {name:'系统预置模板保护', status:'done', pct:100, note:'sys 类型不可删除/不可停用、不可修改核心结构'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'实例管理', items:[
+    {name:'MsArchivesInstance 实例CRUD', status:'done', pct:100, note:'先查旧值→删旧→插新→记日志 的四步操作链'},
+    {name:'多选值拆分存储', status:'done', pct:100, note:'逗号分隔值拆为多条记录（需求2337），方便数仓抽取和单值搜索'},
+    {name:'MsArchivesReal 模板实例', status:'done', pct:100, note:'模板+资料项的快照副本，attrType 区分会员/宝宝维度'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'变更日志', items:[
+    {name:'ms_archives_instance_log 表设计', status:'done', pct:100, note:'oldValue/newValue/optType/channel 完整的操作审计字段'},
+    {name:'新旧值对比逻辑', status:'done', pct:100, note:'按 attrType+attrId+infoId 分组查询旧值，与提交值逐条对比'},
+    {name:'操作类型判定', status:'done', pct:100, note:'oldVal==null→INSERT、newVal==""→DELETE、其余→UPDATE'},
+    {name:'showTruedValue 修复', status:'done', pct:100, note:'多选值用完整展示值而非拆分后的单值记录日志'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'数据同步', items:[
+    {name:'档案→会员表同步', status:'done', pct:100, note:'synTemplateToMemberInfo 按 colName 映射到 ms_member_def'},
+    {name:'档案→宝宝表同步', status:'done', pct:100, note:'saveArchivesInstanceToMsMemberBaby 写入 babyName/sex/birth/feeding'},
+    {name:'档案→复购属性同步', status:'done', pct:100, note:'奶粉段位/纸尿裤尺码同步到 ms_repurchase_attributes'},
+    {name:'会员表→档案反向同步', status:'done', pct:100, note:'synMemberInfoToTemplate 会员信息变更回写档案'}
+  ]},
+  { parent:'会员管理', group:'会员档案', name:'多渠道接入', items:[
+    {name:'小程序 PTMINI', status:'done', pct:100, note:'submitAllArchives 统一入口、会员自己填写'},
+    {name:'客员通APP GuestPass', status:'done', pct:100, note:'导购代填、submitUserId=导购工号'},
+    {name:'企微侧边栏 WeChatSidebar', status:'done', pct:100, note:'侧边栏直接查看/编辑会员档案'},
+    {name:'SCRM系统', status:'done', pct:100, note:'营销侧读取档案数据做精准推荐'},
+    {name:'ERP后台', status:'done', pct:100, note:'360视图档案画像、后台手动编辑'},
+    {name:'提交人追溯', status:'done', pct:100, note:'submitUserId/Name 完整透传到实例+日志表'}
+  ]},
+  { parent:'会员管理', group:'会员充值', name:'会员充值', items:[
+    {name:'账本类型信息', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'会员营销', name:'会员营销', items:[
+    {name:'定时营销配置', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'会员认证', name:'会员认证', items:[
+    {name:'新生儿/孕妈认证配置', status:'pending', pct:0, note:''},
+    {name:'新生儿/孕妈认证审核', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'超级会员', name:'超级会员', items:[
+    {name:'超级会员', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'品牌合作', name:'品牌合作', items:[
+    {name:'品牌合作', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'会员管理', group:'信用卡管理', name:'信用卡管理', items:[
+    {name:'信用卡管理', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'销售主数据', name:'销售主数据', items:[
+    {name:'GoodsSales 销售单结构', status:'pending', pct:0, note:''},
+    {name:'销售类型/渠道/导购关联', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'销售退货', name:'销售退货', items:[
+    {name:'整单/部分/无单退货', status:'pending', pct:0, note:''},
+    {name:'退货业务流', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'寄存提取', name:'寄存提取', items:[
+    {name:'寄存头表/明细', status:'pending', pct:0, note:''},
+    {name:'提货流程', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'促销优惠券', name:'促销优惠券', items:[
+    {name:'满减/满折/满赠/组合价', status:'pending', pct:0, note:''},
+    {name:'券码生成/赠送/核销链路', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'导购提成', name:'导购提成', items:[
+    {name:'提成计算基准', status:'pending', pct:0, note:''},
+    {name:'提成重算触发时机', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'销售结算', name:'销售结算', items:[
+    {name:'成本核算', status:'pending', pct:0, note:''},
+    {name:'结算单生成/审批', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'销售报表', name:'销售报表', items:[
+    {name:'日报/员工/部门/会员维度', status:'pending', pct:0, note:''},
+    {name:'定时任务生成', status:'pending', pct:0, note:''}
+  ]},
+  { parent:'销售管理', group:'支付收款', name:'支付收款', items:[
+    {name:'支付方式', status:'pending', pct:0, note:''},
+    {name:'收银流程/交接班', status:'pending', pct:0, note:''}
+  ]}
+];
+
+// ===== 按 parent + group 聚合 =====
+const parentMap = new Map();
+MODULES.forEach(m => {
+  if (!parentMap.has(m.parent)) {
+    parentMap.set(m.parent, { name: m.parent, total: 0, done: 0, groups: new Map() });
+  }
+  const p = parentMap.get(m.parent);
+  if (!p.groups.has(m.group)) {
+    p.groups.set(m.group, { name: m.group, total: 0, done: 0 });
+  }
+  const g = p.groups.get(m.group);
+  m.items.forEach(i => { p.total++; g.total++; if (i.status === 'done') { p.done++; g.done++; } });
+});
+const PARENTS = Array.from(parentMap.values());
+
+// Also keep group-level for filtering
+const groupMap = new Map();
+MODULES.forEach(m => {
+  if (!groupMap.has(m.group)) {
+    groupMap.set(m.group, { name: m.group, total: 0, done: 0, parent: m.parent });
+  }
+  const g = groupMap.get(m.group);
+  m.items.forEach(i => { g.total++; if (i.status === 'done') g.done++; });
+});
+const GROUPS = Array.from(groupMap.values());
+
+// ===== 全局统计 =====
+let totalItems = 0, doneItems = 0, doingModules = 0;
+MODULES.forEach(m => {
+  let mDone = 0, mTotal = 0;
+  m.items.forEach(i => { totalItems++; mTotal++; if (i.status === 'done') { doneItems++; mDone++; } });
+  if (mDone > 0 && mDone < mTotal) doingModules++;
+});
+const pct = Math.round(doneItems / totalItems * 100);
+
+// ===== 顶部统计卡 =====
+document.getElementById('summaryStats').innerHTML = `
+  <div class="stat-card green"><div class="num">${doneItems}</div><div class="label">已完成</div></div>
+  <div class="stat-card"><div class="num">${doingModules}</div><div class="label">进行中</div></div>
+  <div class="stat-card"><div class="num">${totalItems - doneItems}</div><div class="label">待学习</div></div>
+  <div class="stat-card green"><div class="num">${pct}%</div><div class="label">完成率</div></div>
+  <div class="stat-card"><div class="num">${totalItems}</div><div class="label">学习项总数</div></div>
+`;
+document.getElementById('mainBar').style.width = pct + '%';
+
+// ===== 左侧大纲渲染 =====
+let currentGroupFilter = 'all';
+let collapsedParents = new Set(PARENTS.map(p => p.name)); // 默认全部折叠
+
+function renderSidebar() {
+  let html = '';
+  // "全部"入口
+  html += `<div class="sidebar-item ${currentGroupFilter === 'all' ? 'active' : ''}" data-group="all">
+    <span class="dot ${pct >= 100 ? 'done' : pct > 0 ? 'partial' : 'none'}"></span>
+    <span class="name">📊 全部模块</span>
+    <span class="pct">${doneItems}/${totalItems}</span>
+  </div>`;
+
+  PARENTS.forEach(parent => {
+    const ppct = Math.round(parent.done / parent.total * 100);
+    const dotClass = ppct >= 100 ? 'done' : ppct > 0 ? 'partial' : 'none';
+    const isCollapsed = collapsedParents.has(parent.name);
+    const childCount = parent.groups.size;
+    const childrenMaxH = isCollapsed ? 0 : childCount * 36;
+
+    html += `<div class="sidebar-item sidebar-parent ${isCollapsed ? 'collapsed' : ''}" data-group="${parent.name}" data-is-parent="true">
+      <span class="tree-arrow">▼</span>
+      <span class="dot ${dotClass}"></span>
+      <span class="name">${parent.name}</span>
+      <span class="pct">${parent.done}/${parent.total}</span>
+    </div>`;
+
+    html += `<div class="sidebar-children ${isCollapsed ? 'collapsed' : ''}" style="max-height:${childrenMaxH}px">`;
+    Array.from(parent.groups.values()).forEach(g => {
+      const gpct = Math.round(g.done / g.total * 100);
+      const gdotClass = gpct >= 100 ? 'done' : gpct > 0 ? 'partial' : 'none';
+      const gActive = currentGroupFilter === g.name;
+      html += `<div class="sidebar-item sidebar-child ${gActive ? 'active' : ''}" data-group="${g.name}">
+        <span class="dot ${gdotClass}"></span>
+        <span class="name">${g.name}</span>
+        <span class="pct">${g.done}/${g.total}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // 分隔线 + 学习成果入口（可展开年月）
+  const achievCollapsed = collapsedParents.has('__achievement__');
+  html += '<div class="sidebar-sep"></div>';
+  html += '<div class="sidebar-item sidebar-parent' + (achievCollapsed ? ' collapsed' : '') + '" data-group="__achievement__" data-is-parent="true">';
+  html += '<span class="tree-arrow">▼</span>';
+  html += '<span class="icon" style="font-size:14px">✨</span>';
+  html += '<span class="name">学习成果</span>';
+  html += '<span class="pct">' + totalAchievements + '项</span>';
+  html += '</div>';
+  var achievChildH = achievementMonths.length * 36;
+  html += '<div class="sidebar-children' + (achievCollapsed ? ' collapsed' : '') + '" style="max-height:' + (achievCollapsed ? 0 : achievChildH) + 'px">';
+  achievementMonths.forEach(function(month) {
+    var mActive = currentGroupFilter === month.period;
+    html += '<div class="sidebar-item sidebar-child' + (mActive ? ' active' : '') + '" data-group="' + month.period + '" data-is-achievement="true">';
+    html += '<span class="dot done"></span>';
+    html += '<span class="name">' + month.period + '</span>';
+    html += '<span class="pct">' + month.items.length + '项</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('sidebarList').innerHTML = html;
+
+  // 绑定子节点点击事件
+  document.querySelectorAll('.sidebar-item:not([data-is-parent])').forEach(item => {
+    item.addEventListener('click', function() {
+      currentGroupFilter = this.dataset.group;
+      renderSidebar();
+      switchView('module');
+      document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+      document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+      currentFilter = 'all';
+      renderModules('all', currentGroupFilter);
+    });
+  });
+
+  // 绑定父节点点击（切换展开/收起 + 筛选右侧）
+  document.querySelectorAll('.sidebar-item[data-is-parent]').forEach(item => {
+    item.addEventListener('click', function() {
+      const parentName = this.dataset.group;
+      // 切换折叠状态
+      if (collapsedParents.has(parentName)) {
+        collapsedParents.delete(parentName);
+      } else {
+        collapsedParents.add(parentName);
+      }
+      currentGroupFilter = parentName;
+      renderSidebar();
+      if (parentName === '__achievement__') {
+        var latestMonth = achievementMonths[achievementMonths.length - 1].period;
+        switchView('achievement', latestMonth);
+      } else {
+        switchView('module');
+      }
+      document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+      document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+      currentFilter = 'all';
+      renderModules('all', currentGroupFilter);
+    });
+  });
+
+  // 绑定成果月份子节点点击
+  document.querySelectorAll('.sidebar-item[data-is-achievement]').forEach(function(item) {
+    item.addEventListener('click', function() {
+      currentGroupFilter = this.dataset.group;
+      renderSidebar();
+      switchView('achievement', this.dataset.group);
+      document.querySelectorAll('.filter-chip[data-filter]').forEach(function(c) { c.classList.remove('active'); });
+      document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+    });
+  });
+}
+
+// ===== 学习成果（按年月分组） =====
+const achievementMonths = [
+  {
+    period: '2026年7月',
+    summary: '围绕<strong>需求-7165「儿童健康管理资料采集」</strong>，深入学习了会员档案模块的完整业务链路，覆盖<strong>11个子项、30+提交</strong>。',
+    items: [
+      {title:'业务流程掌握', desc:'完整理解了 模板配置→资料采集→实例存储→日志记录→业务表同步 的五步数据流，能独立画出端到端流程图'},
+      {title:'宝宝维度改造', desc:'从0到1实现宝宝档案独立管理：attrType 区分 member/baby、子级资料项平铺、宝宝表同步、多宝宝切换'},
+      {title:'多渠道统一入口', desc:'梳理了小程序/客员通/企微侧边栏/SCRM/ERP 六个渠道的差异：提交人不同、channel 不同、兜底策略不同'},
+      {title:'系统预置 vs 自定义', desc:'深刻理解了 sys/self 的设计差异：sys 跳过实例表直接存业务表避免冗余，self 存实例表保证灵活性'},
+      {title:'数据一致性保障', desc:'掌握了 先查旧→删旧→插新→记日志 的四步事务操作链，以及档案↔会员表↔宝宝表的双向同步机制'},
+      {title:'变更可追溯', desc:'从0设计了 ms_archives_instance_log 表，实现 INSERT/UPDATE/DELETE 三种操作类型的审计记录'},
+      {title:'代码质量意识', desc:'通过 Code Review 修复了事务注解缺失、空集合判断、泛型警告、Bug逻辑错误等问题'},
+      {title:'渐进式改造策略', desc:'理解了 saveReal（老）与 submitAllArchives（新）双入口并存的设计思路，保证向后兼容'}
+    ]
+  }
+];
+
+// 总成果数
+const totalAchievements = achievementMonths.reduce((sum, m) => sum + m.items.length, 0);
+
+// ===== 视图切换 =====
+function switchView(view, monthFilter) {
+  const moduleView = document.getElementById('moduleView');
+  const achievementView = document.getElementById('achievementView');
+  const expandBtn = document.getElementById('expandAllBtn');
+  const filterChips = document.querySelectorAll('.filter-chip');
+
+  if (view === 'achievement') {
+    moduleView.classList.add('hidden');
+    achievementView.classList.add('active');
+    expandBtn.style.display = 'none';
+    filterChips.forEach(c => c.style.display = 'none');
+    document.querySelector('.filter-bar .label').style.display = 'none';
+    // 按月份筛选成果展示
+    renderAchievements(monthFilter);
+  } else {
+    moduleView.classList.remove('hidden');
+    achievementView.classList.remove('active');
+    expandBtn.style.display = '';
+    filterChips.forEach(c => c.style.display = '');
+    document.querySelector('.filter-bar .label').style.display = '';
+  }
+}
+
+// ===== 渲染成果视图（支持按月筛选） =====
+function renderAchievements(monthFilter) {
+  const months = monthFilter
+    ? achievementMonths.filter(m => m.period === monthFilter)
+    : achievementMonths;
+
+  let summaryHTML = '';
+  let gridHTML = '';
+  if (months.length === 0) {
+    gridHTML = '<div class="empty-state"><div class="icon">-</div><p>暂无成果记录</p></div>';
+  } else {
+    months.forEach(function(month) {
+      summaryHTML += '<p style="margin-bottom:4px"><strong>' + month.period + '</strong>：' + month.summary.replace(/<[^>]*>/g, '') + '</p>';
+      month.items.forEach(function(a) {
+        gridHTML += '<div class="achievement-item">' +
+          '<div class="title">' + a.title + '</div>' +
+          '<div class="desc">' + a.desc + '</div>' +
+        '</div>';
+      });
+    });
+  }
+  document.getElementById('achievementSummary').innerHTML = summaryHTML;
+  document.getElementById('achievementGrid').innerHTML = gridHTML;
+}
+// ===== 右侧卡片渲染 =====
+function renderModules(filter, groupFilter) {
+  let html = '';
+  let visibleCount = 0;
+
+  MODULES.forEach(m => {
+    const doneCount = m.items.filter(i => i.status === 'done').length;
+    const totalCount = m.items.length;
+    const mPct = Math.round(doneCount / totalCount * 100);
+    const allDone = doneCount === totalCount;
+    const cardClass = allDone ? 'done' : 'pending';
+    const badgeClass = allDone ? 'badge-done' : (doneCount > 0 ? 'badge-partial' : 'badge-pending');
+    const badgeText = allDone ? '已完成' : (doneCount > 0 ? doneCount + '/' + totalCount : '待学习');
+
+    // 状态筛选
+    if (filter === 'done' && doneCount === 0) return;
+    if (filter === 'pending' && allDone) return;
+    // 模块分组筛选（支持按 group 或按 parent 筛选）
+    if (groupFilter !== 'all' && m.group !== groupFilter && m.parent !== groupFilter) return;
+    visibleCount++;
+
+    const openClass = '';
+
+    html += `
+    <div class="module-card ${cardClass}${openClass}" data-group="${m.group}">
+      <div class="module-card-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <h3>${m.name} <span class="badge ${badgeClass}">${badgeText}</span></h3>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:1px">${m.group}</div>
+        </div>
+        <div class="expand-hint"><span class="hint-closed">📖 查看详情</span><span class="hint-open">📕 收起详情</span></div>
+      </div>
+      <div class="mini-bar-wrap"><div class="mini-bar ${allDone ? 'green' : ''}" style="width:${mPct}%;${allDone ? '' : 'background:#e5e7eb;'}"></div></div>
+      <div class="module-card-body">
+        <table>`;
+    m.items.forEach(i => {
+      html += `<tr>
+        <td><span class="status-dot ${i.status === 'done' ? 'done' : 'pending'}"></span>${i.name}</td>
+        <td style="color:${i.status === 'done' ? 'var(--green)' : '#d1d5db'}">${i.status === 'done' ? '✓ 完成' : '—'}</td>
+      </tr>`;
+    });
+    html += `</table></div>`;
+
+    if (doneCount > 0) {
+      html += `<div class="detail-panel"><h4>📝 学习要点</h4><ul>`;
+      m.items.filter(i => i.status === 'done' && i.note).forEach(i => {
+        html += `<li><strong>${i.name}</strong>：${i.note}</li>`;
+      });
+      html += `</ul></div>`;
+    }
+
+    html += `<div class="card-footer"><span>${doneCount}/${totalCount} 项完成</span></div>`;
+    html += `</div>`;
+  });
+
+  if (visibleCount === 0) {
+    html = `<div class="empty-state"><div class="icon">📭</div><p>该分组下暂无内容</p></div>`;
+  }
+  document.getElementById('moduleGrid').innerHTML = html;
+}
+
+// ===== 状态筛选按钮 =====
+let currentFilter = 'done';
+document.querySelectorAll('.filter-chip[data-filter]').forEach(chip => {
+  chip.addEventListener('click', function() {
+    document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    currentFilter = this.dataset.filter;
+    renderModules(currentFilter, currentGroupFilter);
+  });
+});
+
+// ===== 展开/收起全部 =====
+let allExpanded = false;
+function toggleExpandAll() {
+  const btn = document.getElementById('expandAllBtn');
+  const cards = document.querySelectorAll('.module-card');
+  allExpanded = !allExpanded;
+  cards.forEach(c => {
+    if (allExpanded) {
+      c.classList.add('open');
+    } else {
+      c.classList.remove('open');
+    }
+  });
+  btn.textContent = allExpanded ? '📕 收起全部详情' : '📖 展开全部详情';
+  btn.classList.toggle('collapsing', allExpanded);
+}
+
+// ===== 初始化：默认展示最新月份学习成果 =====
+var latestMonth = achievementMonths[achievementMonths.length - 1].period;
+currentGroupFilter = latestMonth;
+// 确保学习成果父节点默认展开
+collapsedParents.delete('__achievement__');
+renderSidebar();
+switchView('achievement', latestMonth);
+</script>
+</body>
+</html>
