@@ -403,9 +403,9 @@ const pct = Math.round(doneItems / totalItems * 100);
 
 // ===== 顶部统计卡 =====
 document.getElementById('summaryStats').innerHTML = `
-  <div class="stat-card green"><div class="num">${doneItems}</div><div class="label">已完成</div></div>
-  <div class="stat-card"><div class="num">${doingModules}</div><div class="label">进行中</div></div>
-  <div class="stat-card"><div class="num">${totalItems - doneItems}</div><div class="label">待学习</div></div>
+  <div class="stat-card green" data-stat="done" onclick="clickStat('done')" style="cursor:pointer"><div class="num">${doneItems}</div><div class="label">已完成</div></div>
+  <div class="stat-card" data-stat="doing" onclick="clickStat('doing')" style="cursor:pointer"><div class="num">${doingModules}</div><div class="label">进行中</div></div>
+  <div class="stat-card" data-stat="pending" onclick="clickStat('pending')" style="cursor:pointer"><div class="num">${totalItems - doneItems}</div><div class="label">待学习</div></div>
   <div class="stat-card green"><div class="num">${pct}%</div><div class="label">完成率</div></div>
   <div class="stat-card"><div class="num">${totalItems}</div><div class="label">学习项总数</div></div>
 `;
@@ -546,6 +546,24 @@ const achievementMonths = [
 // 总成果数
 const totalAchievements = achievementMonths.reduce((sum, m) => sum + m.items.length, 0);
 
+// ===== 顶部统计卡点击筛选 =====
+function clickStat(type) {
+  // 切换到模块视图
+  switchView('module');
+  // 更新筛选芯片
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(function(c) { c.classList.remove('active'); });
+  var filterMap = { done: 'done', doing: 'all', pending: 'pending' };
+  var targetFilter = filterMap[type];
+  document.querySelector('.filter-chip[data-filter="' + targetFilter + '"]').classList.add('active');
+  // 更新 currentFilter
+  currentFilter = type === 'doing' ? 'doing' : type;
+  // 重置侧边栏筛选为全部
+  currentGroupFilter = 'all';
+  renderSidebar();
+  // 筛选渲染
+  renderModules(currentFilter === 'doing' ? 'doing' : currentFilter, 'all');
+}
+
 // ===== 视图切换 =====
 function switchView(view, monthFilter) {
   const moduleView = document.getElementById('moduleView');
@@ -610,6 +628,7 @@ function renderModules(filter, groupFilter) {
 
     // 状态筛选
     if (filter === 'done' && doneCount === 0) return;
+    if (filter === 'doing' && (doneCount === 0 || allDone)) return;
     if (filter === 'pending' && allDone) return;
     // 模块分组筛选（支持按 group 或按 parent 筛选）
     if (groupFilter !== 'all' && m.group !== groupFilter && m.parent !== groupFilter) return;
